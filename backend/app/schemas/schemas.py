@@ -1,29 +1,129 @@
 from pydantic import BaseModel, Field, validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 import re
 
 class BrigadeCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=50)
 
-class BrigadeResponse(BrigadeCreate):
+class BrigadeResponse(BaseModel):
     id: int
+    name: str
 
     class Config:
         from_attributes = True
 
 class CollectorCreate(BaseModel):
-    full_name: str
+    full_name: str = Field(..., min_length=3, max_length=100)
+    photo: Optional[str] = None
+    personal_characteristic: Optional[str] = Field(None, max_length=500)
+    birth_year: int = Field(..., ge=1950, le=2010)
+    brigade_id: int
+
+class CollectorUpdate(BaseModel):
+    full_name: Optional[str] = None
     photo: Optional[str] = None
     personal_characteristic: Optional[str] = None
+    birth_year: Optional[int] = Field(None, ge=1950, le=2010)
+    brigade_id: Optional[int] = None
+
+class CollectorResponse(BaseModel):
+    id: int
+    full_name: str
+    photo: Optional[str]
+    personal_characteristic: Optional[str]
     birth_year: int
     brigade_id: int
 
-class CollectorResponse(CollectorCreate):
-    id: int
-
     class Config:
         from_attributes = True
+
+class CollectorWithBrigade(CollectorResponse):
+    brigade_name: str
+
+class BrigadeWithCollectors(BrigadeResponse):
+    collectors: List[CollectorResponse] = []
+
+
+# === ПРОДУКЦИЯ ===
+class ProductCategoryCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+
+class ProductCategoryResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    class Config:
+        from_attributes = True
+
+class ProductCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=200)
+    description: Optional[str] = None
+    price: float = Field(..., gt=0)
+    stock: int = Field(default=0, ge=0)
+    category_id: int
+    image_url: Optional[str] = None
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = Field(None, gt=0)
+    stock: Optional[int] = Field(None, ge=0)
+    category_id: Optional[int] = None
+    image_url: Optional[str] = None
+
+class ProductResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    price: float
+    stock: int
+    category_id: int
+    image_url: Optional[str]
+    category: ProductCategoryResponse
+    class Config:
+        from_attributes = True
+
+# === БРИГАДЫ (обновленные) ===
+class BrigadeWithCollectors(BrigadeResponse):
+    collectors: List['CollectorResponse'] = []
+
+class CollectorWithBrigade(CollectorResponse):
+    brigade_name: str
+
+# === ЖУРНАЛ УРОЖАЯ ===
+class HarvestLogCreate(BaseModel):
+    collector_id: int
+    brigade_id: int
+    harvest_date: date
+    crop_type: str = Field(..., min_length=2, max_length=100)
+    quantity: float = Field(..., gt=0)
+    quality_grade: str = Field(..., pattern="^[ABC]$")
+    notes: Optional[str] = Field(None, max_length=500)
+
+    @validator('quality_grade')
+    def validate_quality(cls, v):
+        if v not in ['A', 'B', 'C']:
+            raise ValueError('Качество должно быть A, B или C')
+        return v
+
+class HarvestLogResponse(BaseModel):
+    id: int
+    collector_id: int
+    brigade_id: int
+    harvest_date: date
+    crop_type: str
+    quantity: float
+    quality_grade: str
+    notes: Optional[str]
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class HarvestLogWithDetails(HarvestLogResponse):
+    collector_name: str
+    brigade_name: str
 
 class UserRegistration(BaseModel):
     username: str = Field(..., min_length=3, description="Username должен быть уникальным")
@@ -91,3 +191,5 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
+
