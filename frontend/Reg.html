@@ -6,30 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="images/favicon.png" type="image/png">
     <link rel="stylesheet" href="styles/reg.css">
+    <script src="/frontend/js/reg.js"></script>
     <title>GardenSpace - Регистрация</title>
 
 </head>
 
 <body>
     <div class="wrapper">
-        <form action="">
+        <form id="registrationForm">
             <h1>GardenSpace</h1>
             <div class="input-box">
-                <div class="number">
-                    <input type="text" placeholder="+7 9XX XXX XX XX" required>
+                <div class="user">
+                    <input type="text" id="username" placeholder="Введите @username" required>
                 </div>
 
                 <div class="fio">
-                    <input type="text" placeholder="ФИО" required>
+                    <input type="text" id="fio" placeholder="ФИО" required>
                 </div>
                 <div class="bd">
-                    <input type="date" placeholder="Дата рождений ХХ.ХХ.ХХХХ" required>
+                    <input type="date" id="birth_date" placeholder="Дата рождения ХХ.ХХ.ХХХХ" required>
                 </div>
                 <div class="addres">
-                    <input type="text" placeholder="Адрес" required>
+                    <input type="text" id="address" placeholder="Адрес" required>
                 </div>
                 <div class="fpol">
-                    <select class="form-pol">
+                    <select class="form-pol" id="gender" required>
                         <option value="">Выберите пол</option>
                         <option value="men">Мужской</option>
                         <option value="women">Женский</option>
@@ -37,35 +38,41 @@
                 </div>
 
                 <div class="interst">
-                    <input type="text" placeholder="Интересы" required>
+                    <input type="text" id="interests" placeholder="Интересы" required>
                 </div>
                 <div class="vk">
-                    <input type="text" placeholder="Ссылка на ваш ВК" required>
+                    <input type="text" id="vk_link" placeholder="Ссылка на ваш ВК" required>
                 </div>
 
                 <div class="blood-group">
-                    <select>
+                    <select id="blood_group" required>
                         <option value="">Выберите группу крови</option>
-                        <option value="first">1</option>
-                        <option value="second">2</option>
-                        <option value="third">3</option>
-                        <option value="fouth">4</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
                     </select>
                 </div>
 
                 <div class="rezus">
-                    <input type="text" placeholder="Резус фактор" required>
+                    <input type="text" id="rh_factor" placeholder="Резус фактор (+ или -)" required>
                 </div>
                 <div class="password">
-                    <input type="password" placeholder="Придумайте пароль" required>
+                    <input type="password" id="password" placeholder="Придумайте пароль" required>
                 </div>
+                
+                <div id="errorMessage" style="color: red; margin: 10px 0; display: none;"></div>
+                <div id="successMessage" style="color: green; margin: 10px 0; display: none;"></div>
+                
                 <div class="reg">
-                    <button type="submit">Зарегистриоваться</button>
+                    <button type="submit">Зарегистрироваться</button>
                 </div>
                 <div class="enter">
-                    <p>Уже зарегистрированны на нашем сайте? <a href="#">Войти</a></p>
+                    <p>Уже зарегистрированы на нашем сайте? <a href="login.html">Войти</a></p>
                 </div>
             </div>
+        </form>
+    </div>
             
             
         </form>
