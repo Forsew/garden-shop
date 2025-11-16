@@ -26,16 +26,22 @@ class CollectorResponse(CollectorCreate):
         from_attributes = True
 
 class UserRegistration(BaseModel):
-    username: str
-    full_name: str
-    password: str
-    birth_date: date
-    address: str
-    gender: str
-    hobby: Optional[str] = None
-    vk_profile: Optional[str] = None
-    blood_group: str
-    rh_factor: str
+    username: str = Field(..., min_length=3, description="Username должен быть уникальным")
+    full_name: str = Field(..., min_length=3, description="ФИО")
+    password: str = Field(..., min_length=6, description="Пароль")
+    birth_date: date = Field(..., description="Дата рождения")
+    address: str = Field(..., min_length=5, description="Адрес")
+    gender: str = Field(..., description="Пол: Мужской или Женский")
+    hobby: Optional[str] = Field(None, description="Интересы")
+    vk_profile: Optional[str] = Field(None, description="Ссылка на VK профиль")
+    blood_group: str = Field(..., description="Группа крови: 1, 2, 3, 4")
+    rh_factor: str = Field(..., description="Резус фактор: + или -")
+
+    @validator('username')
+    def validate_username(cls, value):
+        if not re.match(r'^[a-zA-Z0-9_]+$', value):
+            raise ValueError('Username может содержать только латинские буквы, цифры и подчеркивание')
+        return value
 
     @validator('password')
     def validate_password(cls, value):
@@ -55,8 +61,29 @@ class UserRegistration(BaseModel):
             raise ValueError('Пароль не должен содержать русские буквы')
         return value
     
-class UserResponse(UserRegistration):
+    @validator('rh_factor')
+    def validate_rh_factor(cls, value):
+        if value not in ['+', '-']:
+            raise ValueError('Резус фактор должен быть + или -')
+        return value
+    
+    @validator('vk_profile')
+    def validate_vk_profile(cls, value):
+        if value and not value.startswith(('https://vk.com/', 'http://vk.com/', 'vk.com/')):
+            raise ValueError('Неверная ссылка на VK')
+        return value
+    
+class UserResponse(BaseModel):
     id: int
+    username: str
+    full_name: str
+    birth_date: date
+    address: str
+    gender: str
+    hobby: Optional[str]
+    vk_profile: Optional[str]
+    blood_group: str
+    rh_factor: str
 
     class Config:
         from_attrinutes = True

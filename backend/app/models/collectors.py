@@ -1,8 +1,6 @@
-from sqlalchemy import Integer, Column, String, Date, Text, Float, ForeignKey
+from sqlalchemy import Integer, Column, String, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from ..database import Base
-from brigades import Brigade
 
 class Collector(Base):
     __tablename__ = "collectors"

@@ -6,9 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="images/favicon.png" type="image/png">
     <link rel="stylesheet" href="styles/reg.css">
-    <script src="/frontend/js/reg.js"></script>
     <title>GardenSpace - Регистрация</title>
-
 </head>
 
 <body>
@@ -23,12 +21,15 @@
                 <div class="fio">
                     <input type="text" id="fio" placeholder="ФИО" required>
                 </div>
+
                 <div class="bd">
-                    <input type="date" id="birth_date" placeholder="Дата рождения ХХ.ХХ.ХХХХ" required>
+                    <input type="date" id="birth_date" required>
                 </div>
+
                 <div class="addres">
                     <input type="text" id="address" placeholder="Адрес" required>
                 </div>
+
                 <div class="fpol">
                     <select class="form-pol" id="gender" required>
                         <option value="">Выберите пол</option>
@@ -38,10 +39,11 @@
                 </div>
 
                 <div class="interst">
-                    <input type="text" id="interests" placeholder="Интересы" required>
+                    <input type="text" id="interests" placeholder="Интересы">
                 </div>
+
                 <div class="vk">
-                    <input type="text" id="vk_link" placeholder="Ссылка на ваш ВК" required>
+                    <input type="text" id="vk_link" placeholder="Ссылка на ваш ВК (необязательно)">
                 </div>
 
                 <div class="blood-group">
@@ -55,10 +57,18 @@
                 </div>
 
                 <div class="rezus">
-                    <input type="text" id="rh_factor" placeholder="Резус фактор (+ или -)" required>
+                    <select id="rh_factor" required>
+                        <option value="">Резус фактор</option>
+                        <option value="+">Положительный (+)</option>
+                        <option value="-">Отрицательный (-)</option>
+                    </select>
                 </div>
+
                 <div class="password">
                     <input type="password" id="password" placeholder="Придумайте пароль" required>
+                    <small style="display: block; margin-top: 5px; color: #666; font-size: 11px;">
+                        Минимум 6 символов: заглавные, строчные буквы, цифры, спецсимволы, пробел/дефис
+                    </small>
                 </div>
                 
                 <div id="errorMessage" style="color: red; margin: 10px 0; display: none;"></div>
@@ -67,16 +77,92 @@
                 <div class="reg">
                     <button type="submit">Зарегистрироваться</button>
                 </div>
+
                 <div class="enter">
                     <p>Уже зарегистрированы на нашем сайте? <a href="login.html">Войти</a></p>
                 </div>
             </div>
         </form>
     </div>
-            
-            
-        </form>
-    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            // Получаем username и убираем @ если есть
+            let username = document.getElementById('username').value.trim();
+            if (username.startsWith('@')) {
+                username = username.substring(1);
+            }
+
+            // Собираем данные согласно схеме UserRegistration
+            const formData = {
+                username: username,
+                full_name: document.getElementById('fio').value.trim(),
+                password: document.getElementById('password').value,
+                birth_date: document.getElementById('birth_date').value,
+                address: document.getElementById('address').value.trim(),
+                gender: document.getElementById('gender').value === 'men' ? 'Мужской' : 'Женский',
+                hobby: document.getElementById('interests').value.trim() || null,
+                vk_profile: document.getElementById('vk_link').value.trim() || null,
+                blood_group: document.getElementById('blood_group').value,
+                rh_factor: document.getElementById('rh_factor').value
+            };
+
+            console.log('Отправка данных:', formData);
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/reg`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                console.log('Ответ сервера:', data);
+
+                if (response.ok) {
+                    // Сохраняем токен
+                    localStorage.setItem('access_token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    successDiv.textContent = 'Регистрация успешна! Перенаправление...';
+                    successDiv.style.display = 'block';
+                    
+                    // Перенаправление через 2 секунды
+                    setTimeout(() => {
+                        window.location.href = 'profile.html';
+                    }, 2000);
+                } else {
+                    // Обработка ошибок валидации
+                    if (data.detail) {
+                        if (Array.isArray(data.detail)) {
+                            // Pydantic validation errors
+                            errorDiv.textContent = data.detail.map(err => err.msg).join('; ');
+                        } else {
+                            errorDiv.textContent = data.detail;
+                        }
+                    } else {
+                        errorDiv.textContent = 'Ошибка регистрации';
+                    }
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Ошибка соединения с сервером. Убедитесь, что backend запущен на http://localhost:8000';
+                errorDiv.style.display = 'block';
+                console.error('Error:', error);
+            }
+        });
+    </script>
 </body>
 
 </html>
