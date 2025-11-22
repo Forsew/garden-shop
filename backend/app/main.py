@@ -2,8 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import init_db
-from .routers import auth
+from .routers import auth, products, brigades, harvest
 import os
+
+# ВАЖНО: Импортируем все модели для создания таблиц
+from .models import users, brigades as brigades_model, collectors, products as products_model, harvest as harvest_model
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 
@@ -18,6 +21,9 @@ app.add_middleware(
 
 # Роутеры API
 app.include_router(auth.router)
+app.include_router(products.router)
+app.include_router(brigades.router)
+app.include_router(harvest.router)
 
 @app.on_event("startup")
 def on_startup():
