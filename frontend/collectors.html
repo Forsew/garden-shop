@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="shortcut icon" href="images/favicon.png" type="image/png">
+    <title>GardenSpace - Сборщики</title>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🪴 GardenSpace</h1>
+            <nav>
+                <a href="index.html">Главная</a>
+                <a href="products.html">Продукция</a>
+                <a href="brigades.html">Бригады</a>
+                <a href="collectors.html" class="active">Сборщики</a>
+                <a href="harvest.html">Журнал урожая</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>Сборщики урожая</h2>
+            <button class="btn btn-primary" onclick="showAddCollector()">+ Добавить сборщика</button>
+        </div>
+
+        <div class="filters">
+            <label>
+                Бригада:
+                <select id="brigadeFilter" onchange="loadCollectors()">
+                    <option value="">Все бригады</option>
+                </select>
+            </label>
+        </div>
+
+        <div id="collectorsList" class="collectors-grid"></div>
+    </main>
+
+    <!-- Модальное окно добавления сборщика -->
+    <div id="addCollectorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addCollectorModal')">&times;</span>
+            <h3>Добавить сборщика</h3>
+            <form id="addCollectorForm">
+                <input type="text" id="collectorName" placeholder="ФИО" required>
+                <input type="number" id="collectorYear" placeholder="Год рождения" min="1950" max="2010" required>
+                <select id="collectorBrigade" required>
+                    <option value="">Выберите бригаду</option>
+                </select>
+                <textarea id="collectorDesc" placeholder="Характеристика"></textarea>
+                <input type="url" id="collectorPhoto" placeholder="URL фото">
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="editCollectorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('editCollectorModal')">&times;</span>
+            <h3>Редактировать сборщика</h3>
+            <form id="editCollectorForm">
+                <input type="hidden" id="editCollectorId">
+                <input type="text" id="editCollectorName" placeholder="ФИО" required>
+                <input type="number" id="editCollectorYear" placeholder="Год рождения" min="1950" max="2010" required>
+                <select id="editCollectorBrigade" required>
+                    <option value="">Выберите бригаду</option>
+                </select>
+                <textarea id="editCollectorDesc" placeholder="Характеристика"></textarea>
+                <input type="url" id="editCollectorPhoto" placeholder="URL фото">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        const urlParams = new URLSearchParams(window.location.search);
+        const brigadeFromUrl = urlParams.get('brigade');
+
+        // Загрузка бригад
+        async function loadBrigades() {
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/`);
+                const brigades = await response.json();
+                
+                const filterSelect = document.getElementById('brigadeFilter');
+                const addSelect = document.getElementById('collectorBrigade');
+                const editSelect = document.getElementById('editCollectorBrigade');
+                
+                filterSelect.innerHTML = '<option value="">Все бригады</option>';
+                addSelect.innerHTML = '<option value="">Выберите бригаду</option>';
+                editSelect.innerHTML = '<option value="">Выберите бригаду</option>';
+                
+                brigades.forEach(b => {
+                    filterSelect.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+                    addSelect.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+                    editSelect.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+                });
+
+                if (brigadeFromUrl) {
+                    filterSelect.value = brigadeFromUrl;
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки бригад:', error);
+            }
+        }
+
+        // Загрузка сборщиков
+        async function loadCollectors() {
+            const brigadeId = document.getElementById('brigadeFilter').value;
+            const url = brigadeId ? `${API_URL}/api/brigades/collectors?brigade_id=${brigadeId}` : `${API_URL}/api/brigades/collectors`;
+            
+            try {
+                const response = await fetch(url);
+                const collectors = await response.json();
+                
+                const list = document.getElementById('collectorsList');
+                list.innerHTML = collectors.map(c => `
+                    <div class="collector-card">
+                        ${c.photo ? `<img src="${c.photo}" alt="${c.full_name}">` : '<div class="no-photo">📷</div>'}
+                        <h3>${c.full_name}</h3>
+                        <p class="badge">${c.brigade_name}</p>
+                        <p><strong>Год рождения:</strong> ${c.birth_year}</p>
+                        ${c.personal_characteristic ? `<p class="description">${c.personal_characteristic}</p>` : ''}
+                        <div class="actions">
+                            <button class="btn btn-sm" onclick="editCollector(${c.id})">Редактировать</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteCollector(${c.id})">Удалить</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка загрузки сборщиков:', error);
+            }
+        }
+
+        // Добавление сборщика
+        document.getElementById('addCollectorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                full_name: document.getElementById('collectorName').value,
+                birth_year: parseInt(document.getElementById('collectorYear').value),
+                brigade_id: parseInt(document.getElementById('collectorBrigade').value),
+                personal_characteristic: document.getElementById('collectorDesc').value || null,
+                photo: document.getElementById('collectorPhoto').value || null
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/collectors`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addCollectorModal');
+                    loadCollectors();
+                    alert('Сборщик добавлен!');
+                    e.target.reset();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Редактирование сборщика
+        async function editCollector(id) {
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/collectors/${id}`);
+                const collector = await response.json();
+                
+                document.getElementById('editCollectorId').value = collector.id;
+                document.getElementById('editCollectorName').value = collector.full_name;
+                document.getElementById('editCollectorYear').value = collector.birth_year;
+                document.getElementById('editCollectorBrigade').value = collector.brigade_id;
+                document.getElementById('editCollectorDesc').value = collector.personal_characteristic || '';
+                document.getElementById('editCollectorPhoto').value = collector.photo || '';
+                
+                document.getElementById('editCollectorModal').style.display = 'block';
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        document.getElementById('editCollectorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editCollectorId').value;
+            const data = {
+                full_name: document.getElementById('editCollectorName').value,
+                birth_year: parseInt(document.getElementById('editCollectorYear').value),
+                brigade_id: parseInt(document.getElementById('editCollectorBrigade').value),
+                personal_characteristic: document.getElementById('editCollectorDesc').value || null,
+                photo: document.getElementById('editCollectorPhoto').value || null
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/collectors/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('editCollectorModal');
+                    loadCollectors();
+                    alert('Сборщик обновлен!');
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Удаление сборщика
+        async function deleteCollector(id) {
+            if (!confirm('Удалить сборщика?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/collectors/${id}`, {method: 'DELETE'});
+                if (response.ok) {
+                    loadCollectors();
+                    alert('Сборщик удален!');
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        function showAddCollector() {
+            document.getElementById('addCollectorModal').style.display = 'block';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Загрузка при старте
+        loadBrigades();
+        loadCollectors();
+    </script>
+</body>
+</html>

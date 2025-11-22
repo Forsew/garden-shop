@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="shortcut icon" href="images/favicon.png" type="image/png">
+    <title>GardenSpace - Продукция</title>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🪴 GardenSpace</h1>
+            <nav>
+                <a href="index.html">Главная</a>
+                <a href="products.html" class="active">Продукция</a>
+                <a href="brigades.html">Бригады</a>
+                <a href="collectors.html">Сборщики</a>
+                <a href="harvest.html">Журнал урожая</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>Продукция</h2>
+            <button class="btn btn-primary" onclick="showAddProduct()">+ Добавить товар</button>
+        </div>
+
+        <div class="filters">
+            <label>
+                Категория:
+                <select id="categoryFilter" onchange="loadProducts()">
+                    <option value="">Все категории</option>
+                </select>
+            </label>
+            <button class="btn" onclick="showAddCategory()">+ Добавить категорию</button>
+        </div>
+
+        <div id="productsList" class="products-grid"></div>
+    </main>
+
+    <!-- Модальное окно добавления товара -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addProductModal')">&times;</span>
+            <h3>Добавить товар</h3>
+            <form id="addProductForm">
+                <input type="text" id="productName" placeholder="Название" required>
+                <textarea id="productDesc" placeholder="Описание"></textarea>
+                <input type="number" id="productPrice" placeholder="Цена" step="0.01" required>
+                <input type="number" id="productStock" placeholder="Количество" value="0" required>
+                <select id="productCategory" required>
+                    <option value="">Выберите категорию</option>
+                </select>
+                <input type="url" id="productImage" placeholder="URL изображения">
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления категории -->
+    <div id="addCategoryModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addCategoryModal')">&times;</span>
+            <h3>Добавить категорию</h3>
+            <form id="addCategoryForm">
+                <input type="text" id="categoryName" placeholder="Название категории" required>
+                <textarea id="categoryDesc" placeholder="Описание"></textarea>
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        // Загрузка категорий
+        async function loadCategories() {
+            try {
+                const response = await fetch(`${API_URL}/api/products/categories`);
+                const categories = await response.json();
+                
+                const filterSelect = document.getElementById('categoryFilter');
+                const productSelect = document.getElementById('productCategory');
+                
+                filterSelect.innerHTML = '<option value="">Все категории</option>';
+                productSelect.innerHTML = '<option value="">Выберите категорию</option>';
+                
+                categories.forEach(cat => {
+                    filterSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                    productSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки категорий:', error);
+            }
+        }
+
+        // Загрузка продуктов
+        async function loadProducts() {
+            const categoryId = document.getElementById('categoryFilter').value;
+            const url = categoryId ? `${API_URL}/api/products/?category_id=${categoryId}` : `${API_URL}/api/products/`;
+            
+            try {
+                const response = await fetch(url);
+                const products = await response.json();
+                
+                const list = document.getElementById('productsList');
+                list.innerHTML = products.map(p => `
+                    <div class="product-card">
+                        ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}">` : '<div class="no-image">Нет фото</div>'}
+                        <h3>${p.name}</h3>
+                        <p class="category-badge">${p.category.name}</p>
+                        <p>${p.description || ''}</p>
+                        <div class="product-info">
+                            <span class="price">${p.price} ₽</span>
+                            <span class="stock">На складе: ${p.stock}</span>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteProduct(${p.id})">Удалить</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка загрузки продуктов:', error);
+            }
+        }
+
+        // Добавление категории
+        document.getElementById('addCategoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('categoryName').value,
+                description: document.getElementById('categoryDesc').value || null
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/products/categories`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addCategoryModal');
+                    loadCategories();
+                    alert('Категория добавлена!');
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Добавление товара
+        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDesc').value || null,
+                price: parseFloat(document.getElementById('productPrice').value),
+                stock: parseInt(document.getElementById('productStock').value),
+                category_id: parseInt(document.getElementById('productCategory').value),
+                image_url: document.getElementById('productImage').value || null
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/products/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addProductModal');
+                    loadProducts();
+                    alert('Товар добавлен!');
+                    e.target.reset();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Удаление товара
+        async function deleteProduct(id) {
+            if (!confirm('Удалить товар?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/products/${id}`, {method: 'DELETE'});
+                if (response.ok) {
+                    loadProducts();
+                    alert('Товар удален!');
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        function showAddProduct() {
+            document.getElementById('addProductModal').style.display = 'block';
+        }
+
+        function showAddCategory() {
+            document.getElementById('addCategoryModal').style.display = 'block';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Загрузка при старте
+        loadCategories();
+        loadProducts();
+    </script>
+</body>
+</html>

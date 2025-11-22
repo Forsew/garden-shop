@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="shortcut icon" href="images/favicon.png" type="image/png">
+    <title>GardenSpace - Бригады</title>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🪴 GardenSpace</h1>
+            <nav>
+                <a href="index.html">Главная</a>
+                <a href="products.html">Продукция</a>
+                <a href="brigades.html" class="active">Бригады</a>
+                <a href="collectors.html">Сборщики</a>
+                <a href="harvest.html">Журнал урожая</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>Бригады сборщиков</h2>
+            <button class="btn btn-primary" onclick="showAddBrigade()">+ Создать бригаду</button>
+        </div>
+
+        <div id="brigadesList" class="brigades-grid"></div>
+    </main>
+
+    <!-- Модальное окно создания бригады -->
+    <div id="addBrigadeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addBrigadeModal')">&times;</span>
+            <h3>Создать бригаду</h3>
+            <form id="addBrigadeForm">
+                <input type="text" id="brigadeName" placeholder="Название бригады" required>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        // Загрузка бригад
+        async function loadBrigades() {
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/`);
+                const brigades = await response.json();
+                
+                const list = document.getElementById('brigadesList');
+                list.innerHTML = brigades.map(b => `
+                    <div class="brigade-card">
+                        <div class="brigade-header">
+                            <h3>${b.name}</h3>
+                            <button class="btn btn-danger btn-sm" onclick="deleteBrigade(${b.id})">Удалить</button>
+                        </div>
+                        <div class="collectors-list">
+                            <h4>Сборщики (${b.collectors.length}):</h4>
+                            ${b.collectors.length > 0 ? `
+                                <ul>
+                                    ${b.collectors.map(c => `<li>${c.full_name} (${c.birth_year})</li>`).join('')}
+                                </ul>
+                            ` : '<p class="text-muted">Нет сборщиков</p>'}
+                        </div>
+                        <a href="collectors.html?brigade=${b.id}" class="btn btn-sm">Управление сборщиками</a>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка загрузки бригад:', error);
+                alert('Ошибка загрузки данных');
+            }
+        }
+
+        // Создание бригады
+        document.getElementById('addBrigadeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('brigadeName').value
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addBrigadeModal');
+                    loadBrigades();
+                    alert('Бригада создана!');
+                    e.target.reset();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Удаление бригады
+        async function deleteBrigade(id) {
+            if (!confirm('Удалить бригаду? (В бригаде не должно быть сборщиков)')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/${id}`, {method: 'DELETE'});
+                if (response.ok) {
+                    loadBrigades();
+                    alert('Бригада удалена!');
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        function showAddBrigade() {
+            document.getElementById('addBrigadeModal').style.display = 'block';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Загрузка при старте
+        loadBrigades();
+    </script>
+</body>
+</html>

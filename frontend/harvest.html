@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="shortcut icon" href="images/favicon.png" type="image/png">
+    <title>GardenSpace - Журнал урожая</title>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🪴 GardenSpace</h1>
+            <nav>
+                <a href="index.html">Главная</a>
+                <a href="products.html">Продукция</a>
+                <a href="brigades.html">Бригады</a>
+                <a href="collectors.html">Сборщики</a>
+                <a href="harvest.html" class="active">Журнал урожая</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>Журнал учета сбора урожая</h2>
+            <button class="btn btn-primary" onclick="showAddLog()">+ Добавить запись</button>
+        </div>
+
+        <!-- Статистика -->
+        <div class="stats-panel">
+            <h3>Статистика</h3>
+            <div id="stats" class="stats-grid">
+                <div class="stat-card">
+                    <h4>Всего собрано</h4>
+                    <p id="totalQuantity">0 кг</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Записей</h4>
+                    <p id="totalLogs">0</p>
+                </div>
+            </div>
+            <div id="cropStats"></div>
+            <div id="brigadeStats"></div>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="filters">
+            <input type="date" id="startDate" onchange="loadLogs()">
+            <input type="date" id="endDate" onchange="loadLogs()">
+            <select id="brigadeFilter" onchange="loadLogs()">
+                <option value="">Все бригады</option>
+            </select>
+            <select id="collectorFilter" onchange="loadLogs()">
+                <option value="">Все сборщики</option>
+            </select>
+            <input type="text" id="cropFilter" placeholder="Культура" onchange="loadLogs()">
+            <button class="btn" onclick="resetFilters()">Сбросить</button>
+        </div>
+
+        <!-- Таблица журнала -->
+        <div class="table-container">
+            <table id="harvestTable">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Сборщик</th>
+                        <th>Бригада</th>
+                        <th>Культура</th>
+                        <th>Количество (кг)</th>
+                        <th>Качество</th>
+                        <th>Примечания</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="harvestLogs"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Модальное окно добавления записи -->
+    <div id="addLogModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addLogModal')">&times;</span>
+            <h3>Добавить запись о сборе</h3>
+            <form id="addLogForm">
+                <input type="date" id="logDate" required>
+                <select id="logCollector" required onchange="updateBrigade()">
+                    <option value="">Выберите сборщика</option>
+                </select>
+                <select id="logBrigade" disabled>
+                    <option value="">Бригада (выбирается автоматически)</option>
+                </select>
+                <input type="text" id="logCrop" placeholder="Культура (например, Огурцы)" required>
+                <input type="number" id="logQuantity" placeholder="Количество (кг)" step="0.1" min="0.1" required>
+                <select id="logQuality" required>
+                    <option value="">Класс качества</option>
+                    <option value="A">A - Высший</option>
+                    <option value="B">B - Первый</option>
+                    <option value="C">C - Второй</option>
+                </select>
+                <textarea id="logNotes" placeholder="Примечания (необязательно)"></textarea>
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let allCollectors = [];
+
+        // Загрузка статистики
+        async function loadStats() {
+            const params = new URLSearchParams();
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            
+            if (start) params.append('start_date', start);
+            if (end) params.append('end_date', end);
+            
+            try {
+                const response = await fetch(`${API_URL}/api/harvest/stats/summary?${params}`);
+                const stats = await response.json();
+                
+                document.getElementById('totalQuantity').textContent = `${stats.total_quantity.toFixed(1)} кг`;
+                document.getElementById('totalLogs').textContent = stats.total_logs;
+                
+                // Статистика по культурам
+                const cropStats = document.getElementById('cropStats');
+                cropStats.innerHTML = '<h4>По культурам:</h4>' + 
+                    stats.by_crop.map(c => `<p>${c.crop}: ${c.quantity.toFixed(1)} кг</p>`).join('');
+                
+                // Статистика по бригадам
+                const brigadeStats = document.getElementById('brigadeStats');
+                brigadeStats.innerHTML = '<h4>По бригадам:</h4>' + 
+                    stats.by_brigade.map(b => `<p>${b.brigade}: ${b.quantity.toFixed(1)} кг</p>`).join('');
+            } catch (error) {
+                console.error('Ошибка загрузки статистики:', error);
+            }
+        }
+
+        // Загрузка бригад
+        async function loadBrigades() {
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/`);
+                const brigades = await response.json();
+                
+                const filter = document.getElementById('brigadeFilter');
+                filter.innerHTML = '<option value="">Все бригады</option>';
+                brigades.forEach(b => {
+                    filter.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки бригад:', error);
+            }
+        }
+
+        // Загрузка сборщиков
+        async function loadCollectors() {
+            try {
+                const response = await fetch(`${API_URL}/api/brigades/collectors`);
+                allCollectors = await response.json();
+                
+                const filter = document.getElementById('collectorFilter');
+                const select = document.getElementById('logCollector');
+                
+                filter.innerHTML = '<option value="">Все сборщики</option>';
+                select.innerHTML = '<option value="">Выберите сборщика</option>';
+                
+                allCollectors.forEach(c => {
+                    filter.innerHTML += `<option value="${c.id}">${c.full_name} (${c.brigade_name})</option>`;
+                    select.innerHTML += `<option value="${c.id}" data-brigade="${c.brigade_id}">${c.full_name} (${c.brigade_name})</option>`;
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки сборщиков:', error);
+            }
+        }
+
+        // Обновление бригады при выборе сборщика
+        function updateBrigade() {
+            const collectorSelect = document.getElementById('logCollector');
+            const brigadeSelect = document.getElementById('logBrigade');
+            const selectedOption = collectorSelect.options[collectorSelect.selectedIndex];
+            
+            if (selectedOption.value) {
+                const brigadeId = selectedOption.getAttribute('data-brigade');
+                const collector = allCollectors.find(c => c.id == selectedOption.value);
+                
+                brigadeSelect.innerHTML = `<option value="${brigadeId}">${collector.brigade_name}</option>`;
+                brigadeSelect.value = brigadeId;
+            }
+        }
+
+        // Загрузка журнала
+        async function loadLogs() {
+            const params = new URLSearchParams();
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            const brigade = document.getElementById('brigadeFilter').value;
+            const collector = document.getElementById('collectorFilter').value;
+            const crop = document.getElementById('cropFilter').value;
+            
+            if (start) params.append('start_date', start);
+            if (end) params.append('end_date', end);
+            if (brigade) params.append('brigade_id', brigade);
+            if (collector) params.append('collector_id', collector);
+            if (crop) params.append('crop_type', crop);
+            
+            try {
+                const response = await fetch(`${API_URL}/api/harvest/?${params}`);
+                const logs = await response.json();
+                
+                const tbody = document.getElementById('harvestLogs');
+                tbody.innerHTML = logs.map(log => `
+                    <tr>
+                        <td>${new Date(log.harvest_date).toLocaleDateString('ru-RU')}</td>
+                        <td>${log.collector_name}</td>
+                        <td>${log.brigade_name}</td>
+                        <td>${log.crop_type}</td>
+                        <td>${log.quantity}</td>
+                        <td><span class="quality-badge quality-${log.quality_grade}">${log.quality_grade}</span></td>
+                        <td>${log.notes || '-'}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteLog(${log.id})">Удалить</button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                loadStats();
+            } catch (error) {
+                console.error('Ошибка загрузки журнала:', error);
+            }
+        }
+
+        // Добавление записи
+        document.getElementById('addLogForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                harvest_date: document.getElementById('logDate').value,
+                collector_id: parseInt(document.getElementById('logCollector').value),
+                brigade_id: parseInt(document.getElementById('logBrigade').value),
+                crop_type: document.getElementById('logCrop').value,
+                quantity: parseFloat(document.getElementById('logQuantity').value),
+                quality_grade: document.getElementById('logQuality').value,
+                notes: document.getElementById('logNotes').value || null
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/harvest/`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('addLogModal');
+                    loadLogs();
+                    alert('Запись добавлена!');
+                    e.target.reset();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail);
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        });
+
+        // Удаление записи
+        async function deleteLog(id) {
+            if (!confirm('Удалить запись?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/harvest/${id}`, {method: 'DELETE'});
+                if (response.ok) {
+                    loadLogs();
+                    alert('Запись удалена!');
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('brigadeFilter').value = '';
+            document.getElementById('collectorFilter').value = '';
+            document.getElementById('cropFilter').value = '';
+            loadLogs();
+        }
+
+        function showAddLog() {
+            // Установить сегодняшнюю дату по умолчанию
+            document.getElementById('logDate').valueAsDate = new Date();
+            document.getElementById('addLogModal').style.display = 'block';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Загрузка при старте
+        loadBrigades();
+        loadCollectors();
+        loadLogs();
+    </script>
+</body>
+</html>
